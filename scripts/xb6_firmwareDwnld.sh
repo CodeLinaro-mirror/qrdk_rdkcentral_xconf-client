@@ -869,6 +869,7 @@ getFirmwareUpgDetail()
 							sleep $delayDownloadSec
 						fi
 					fi
+				fi
 				#else
 				#	checkFirmwareUpgCriteria_temp
 				#fi
