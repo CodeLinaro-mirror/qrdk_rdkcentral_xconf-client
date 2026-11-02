@@ -397,18 +397,20 @@ useDirectRequest()
                 return 1
             fi
 	    FQDN=`echo "$xconf_url" | awk -F/ '{print $3}'`
-            CURL_ARGS=(
-                --interface "$interface"
-                $addr_type
-                -w "%{http_code}\n"
-                --tlsv1.2
-                -d "$JSONSTR"
-                -o "$FWDL_JSON"
-                "$xconf_url"
-                $CERT_STATUS
-                --connect-timeout 30
+            set -- \
+                --interface "$interface" \
+                $addr_type \
+                -w '%{http_code}\n' \
+                --tlsv1.2 \
+                -d "$JSONSTR" \
+                -o "$FWDL_JSON" \
+                "$xconf_url" \
+                $CERT_STATUS \
+                --connect-timeout 30 \
                 -m 30
-            )
+
+            result=$("$CURL_PATH/curl" "$@" > "$HTTP_CODE")
+            
             if [ -f /lib/rdk/stateRedRecoveryUtils.sh ];then
                 isInStateRed
                 stateRed=$?
@@ -1578,7 +1580,7 @@ do
               if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "x$BOX_TYPE" = "xSCXF11BFL" ] || [ "x$BOX_TYPE" = "xXER2" ]; then
                   XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
               else
-                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$cert"
+                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
               fi
               set_url_stat=$?
               echo_t "XCONF SCRIPT : URL with certificate --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename"

@@ -647,8 +647,9 @@ int main(int argc,char *argv[])
                           ERR_CHK(rc);
                           ret_code = Set_HTTP_Download_Url(pHttpUrl, pfilename);
                        } else if((strstr(argv[4], "--cert")) && ((argv[2]) != NULL)) {
-                            printf("XCONF BIN: Certificate arguments must be passed separately.\n");
-                            ret_code = -1;
+                            rc = sprintf_s(pHttpUrl, sizeof(pHttpUrl), "%s %s/%s", argv[4], argv[2], pfilename);
+                            ERR_CHK(rc);
+                            ret_code = Set_HTTP_Download_Url(pHttpUrl, pfilename);
                        } else {
                             printf("XCONF BIN : Unknown 3rd argument %s . Failed to complete set_http_url operation.\n", argv[4]);
                        }
