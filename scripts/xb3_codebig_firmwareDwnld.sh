@@ -98,18 +98,18 @@ UseCodebig=0
 
 validateFirmwareLocation()
 {
-    case "$1" in
-        ''|*[!A-Za-z0-9._/:%-]*) return 1 ;;
-        *) return 0 ;;
-    esac
+     [ "$(printf '%s\n' "$1" | wc -l)" -eq 1 ] || return 1
+     printf '%s\n' "$1" | \
+         grep -Eq '^https://[A-Za-z0-9._-]+(:[0-9]+)?(/[A-Za-z0-9._/%-]+)*$' &&
+         ! printf '%s\n' "$1" | grep -Eq '(^|/)\.\.(/|$)'
 }
 
 validateFirmwareFilename()
 {
-    case "$1" in
-        ''|*[!A-Za-z0-9._/:%-]*) return 1 ;;
-        *) return 0 ;;
-    esac
+     case "$1" in
+         ''|*[!A-Za-z0-9._-]*) return 1 ;;
+         *) return 0 ;;
+     esac
 }
 
 # NOTE:: RDKB-20262 if rdkfwupgrader daemon is enabled, don't do anything in these scripts.
@@ -587,8 +587,22 @@ getFirmwareUpgDetail()
 		if [ "$firmwareName_configured" != "" ]; then
                     currentVersion=$firmwareName_configured
                 fi
-                partnerId=$(getPartnerId | sed 's/[^A-Za-z0-9._-]//g')
-                accountId=$(getAccountId | sed 's/[^A-Za-z0-9._-]//g')
+                partnerId=$(getPartnerId)
+                accountId=$(getAccountId)
+                case "$partnerId" in
+                    *[!A-Za-z0-9._-]*)
+                        echo_t "XCONF SCRIPT : Invalid partnerId '$partnerId' received" >> "$XCONF_LOG_FILE"
+                        return 1
+                        ;;
+                esac
+
+                case "$accountId" in
+                    *[!A-Za-z0-9._-]*)
+                        echo_t "XCONF SCRIPT : Invalid accountId '$accountId' received" >> "$XCONF_LOG_FILE"
+                        return 1
+                        ;;
+                esac
+
                 unitActivationStatus=`syscfg get unit_activated`
 
                 if [ -z "$unitActivationStatus" ] || [ $unitActivationStatus -eq 0 ]; then
@@ -608,8 +622,6 @@ getFirmwareUpgDetail()
 
 			# Query the  XCONF Server, using TLS 1.2
 			echo_t "Attempting TLS1.2 connection to $xconf_url " >> $XCONF_LOG_FILE
-			CURL_CMD="curl $CERT_STATUS --connect-timeout 30 --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -d \"$POSTSTR\" -o \"$FILENAME\" $xconf_url -m 30"
-			echo_t "CURL_CMD: $CURL_CMD" >> $XCONF_LOG_FILE
 			curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$POSTSTR" -o "$FILENAME" "$xconf_url" -m 30 > "$HTTP_CODE"
 			ret=$?
 
@@ -629,8 +641,7 @@ getFirmwareUpgDetail()
                 request_type=$?
 
                 ########Get Signed URL from configparamgen.################
-                umask 077
-                SIGN_FILE=$(mktemp "/tmp/.signedRequest.XXXXXX") || return 1
+                SIGN_FILE=$(umask 077; mktemp "/tmp/.signedRequest.XXXXXX") || return 1
                 configparamgen "$request_type" "$JSONSTR" > "$SIGN_FILE"
                 echo_t "configparamgen success" >> $XCONF_LOG_FILE
                 CB_SIGNED_REQUEST=`cat "$SIGN_FILE"`
@@ -643,10 +654,6 @@ getFirmwareUpgDetail()
 
             # Query the  XCONF Server, using TLS 1.2
             echo_t "Attempting TLS1.2 connection to $xconf_url " >> $XCONF_LOG_FILE
-            CURL_CMD="curl $CERT_STATUS --connect-timeout 30 --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -o \"$FILENAME\" \"$CB_SIGNED_REQUEST\" -m 30"
-            CURL_CMD_LOG=`echo $CURL_CMD | sed -ne 's#oauth_consumer_key=.*oauth_signature.*#-- <hidden> --#p'`
-            echo_t "CURL_CMD:$CURL_CMD_LOG"
-            echo_t "CURL_CMD:$CURL_CMD_LOG" >> $XCONF_LOG_FILE
             curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FILENAME" "$CB_SIGNED_REQUEST" -m 30 > "$HTTP_CODE"
             ret=$?
 
@@ -783,11 +790,8 @@ getFirmwareUpgDetail()
                             echo_t "XCONF SCRIPT : Get Signed URL from configparamgen for ssr response"
                             request_type=1
                         fi
-                        #SIGN_CMD="configparamgen $request_type \"$imageHTTPURL\""
-                        #echo $SIGN_CMD >>$XCONF_LOG_FILE
                         echo -e "\n"
-                        umask 077
-                        SIGN_FILE=$(mktemp "/tmp/.signedRequest.XXXXXX") || return 1
+                        SIGN_FILE=$(umask 077; mktemp "/tmp/.signedRequest.XXXXXX") || return 1
                         configparamgen "$request_type" "$imageHTTPURL" > "$SIGN_FILE"
                         cbSignedimageHTTPURL1=`cat "$SIGN_FILE"`
                         cbSignedimageHTTPURL_Log=`echo $cbSignedimageHTTPURL1 | sed -ne 's#oauth_consumer_key=.*oauth_signature.*#-- <hidden> --#p'`
