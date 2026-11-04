@@ -169,7 +169,6 @@ fi
         if [ -f "$FORMATTED_TMP_DCM_RESPONSE" ]
         then
            cronPattern=$(sed -n 's/^urn:settings:CheckSchedule:cron=//p' "$FORMATTED_TMP_DCM_RESPONSE" | head -n1)
-           #cronPattern=`grep "urn:settings:CheckSchedule:cron" $FORMATTED_TMP_DCM_RESPONSE | cut -f2 -d=`
            if ! validateCronPattern "$cronPattern"; then
                echo_t "XCONF SCRIPT: Invalid cron pattern received"
                cronPattern=""
