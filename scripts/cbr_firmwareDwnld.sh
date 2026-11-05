@@ -69,6 +69,11 @@ wan_interface=$(getWanMacInterfaceName)
 BIN_PATH=/usr/bin
 REBOOT_WAIT="/tmp/.waitingreboot"
 DOWNLOAD_INPROGRESS="/tmp/.downloadingfw"
+
+FWDL_JSON=/tmp/response.txt
+
+SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+
 OWN_LOCK=0
 cleanup_download_lock()
 {
@@ -79,10 +84,6 @@ trap cleanup_download_lock EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
-
-FWDL_JSON=/tmp/response.txt
-
-SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
 
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_cdl"
