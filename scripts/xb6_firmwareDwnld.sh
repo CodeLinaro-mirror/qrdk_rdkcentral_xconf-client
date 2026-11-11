@@ -1488,6 +1488,18 @@ do
         echo "$firmwareLocation" > /tmp/xconfdownloadurl
         #/etc/whitelist.sh "$firmwareLocation"
 
+        # Strict validation of firmwareLocation
+        if ! echo "$firmwareLocation" | grep -Eq '^https://[A-Za-z0-9./_-]+$'; then
+            echo_t "XCONF SCRIPT : Invalid firmwareLocation: " >> "$XCONF_LOG_FILE"
+            rm -f $DOWNLOAD_INPROGRESS
+            exit 1
+        fi
+        # Strict validation of firmwareFilename
+        if ! echo "$firmwareFilename" | grep -Eq '^[A-Za-z0-9._-]+$' || [ "$firmwareFilename" = "." ] || [ "$firmwareFilename" = ".." ]; then
+            echo_t "XCONF SCRIPT : Invalid firmwareFilename: " >> "$XCONF_LOG_FILE"
+            rm -f $DOWNLOAD_INPROGRESS
+            exit 1
+        fi
         if [ "$direct_CDN" = "true" ];then
             echo_t "XCONF SCRIPT : HTTP CDN_Direct set for $curr_conn_type download"
             echo_t "XCONF SCRIPT : HTTP CDN_Direct set for $curr_conn_type download" >> $XCONF_LOG_FILE
@@ -1501,7 +1513,12 @@ do
         fi
 
         if [ "$curr_conn_type" = "direct" ]; then
-          # Set the url and filename
+            if ! echo "$firmware_URL" | grep -Eq '^https://[A-Za-z0-9./_-]+$'; then
+                  echo_t "XCONF SCRIPT : Invalid firmware_URL" >> "$XCONF_LOG_FILE"
+                  set_url_stat=1
+                  return 1
+            fi
+	    # Set the url and filename
           if [ "$triggeredFrom" = "stateRedRecovery" ];then
               stateRedlog "XCONF SCRIPT : stateRedRecovery - setting mtls state red credentials"
               cert="$(getStateRedCreds)"
@@ -1517,7 +1534,7 @@ do
                   echo_t "XCONF SCRIPT stateRedRecovery : $cert" >> $XCONF_LOG_FILE
                   echo_t "XCONF SCRIPT stateRedRecovery : $firmwareLocation/$firmwareFilename" >> $XCONF_LOG_FILE
                   echo_t "XCONF SCRIPT stateRedRecovery : $firmwareFilename " >> $XCONF_LOG_FILE
-                  XconfHttpDl set_http_url " $cert $firmwareLocation/$firmwareFilename " "$firmwareFilename" complete_url
+                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$cert"
                   set_url_stat=$?
               fi
           elif [ "$direct_CDN" = "true" ] && [ $CDL_SERVER_OVERRIDE != 1 ];then
@@ -1535,7 +1552,7 @@ do
               if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "x$BOX_TYPE" = "xSCXF11BFL" ] || [ "x$BOX_TYPE" = "xXER2" ]; then
                   XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
               else
-                  XconfHttpDl set_http_url " $CERT $firmwareLocation/$firmwareFilename " "$firmwareFilename" complete_url
+                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
               fi
               set_url_stat=$?
               echo_t "XCONF SCRIPT : URL with certificate --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename"
@@ -1548,10 +1565,19 @@ do
               set_url_stat=$?
 	  fi
         else
+          if ! echo "$firmware_URL" | grep -Eq '^https://[A-Za-z0-9./_-]+$'; then
+              echo_t "XCONF SCRIPT : Invalid firmware_URL" >> "$XCONF_LOG_FILE"
+              set_url_stat=1
+              return 1
+          fi
+          if ! echo "$firmwareFilename" | grep -Eq '^[A-Za-z0-9._-]+$' || [ "$firmwareFilename" = "." ] || [ "$firmwareFilename" = ".." ]; then
+              echo_t "XCONF SCRIPT : Invalid firmwareFilename: " >> "$XCONF_LOG_FILE"
+              set_url_stat=1
+          return 1
+          fi
           # Set the url and filename
-          echo_t "XCONF SCRIPT : URL --- `echo "$CURL_SSR_PARAM"| sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename"
-          echo_t "XCONF SCRIPT : URL --- `echo "$CURL_SSR_PARAM"| sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename" >> $XCONF_LOG_FILE
-          XconfHttpDl set_http_url "$CURL_SSR_PARAM" "$firmwareFilename" complete_url
+          echo_t "XCONF SCRIPT : Setting validation firmware download URL" >> "$XCONF_LOG_FILE"
+          XconfHttpDl set_http_url "$firmware_URL" "$firmwareFilename" complete_url
           set_url_stat=$?
         fi
         
@@ -1601,9 +1627,18 @@ do
 			else
 				reboot_flag="deferred"
 			fi
+                        if ! echo "$current_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+                            echo_t "XCONF SCRIPT : Invalid current_FW_Version: $current_FW_Version" >> $XCONF_LOG_FILE
+                            return 1
+                        fi
+
+                        if ! echo "$update_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
+                            echo_t "XCONF SCRIPT : Invalid update_FW_Version: $update_FW_Version" >> $XCONF_LOG_FILE
+                            return 1
+                        fi
 			FW_DWLD_NOTIFICATION_STRING="$current_time,$reboot_flag,$current_FW_Version,$update_FW_Version"
 			echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification parameters are $FW_DWLD_NOTIFICATION_STRING" >> $XCONF_LOG_FILE
-			dmcli eRT setv Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.RPC.FirmwareDownloadStartedNotification string $FW_DWLD_NOTIFICATION_STRING
+			dmcli eRT setv Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.RPC.FirmwareDownloadStartedNotification string "$FW_DWLD_NOTIFICATION_STRING"
 			echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification SET is triggered" >> $XCONF_LOG_FILE
 
 	        # Start the image download
