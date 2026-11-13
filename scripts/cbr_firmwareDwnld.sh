@@ -72,7 +72,7 @@ DOWNLOAD_INPROGRESS="/tmp/.downloadingfw"
 
 FWDL_JSON=/tmp/response.txt
 
-SIGN_FILE="/tmp/.signedRequest_$$_`date +'%s'`"
+SIGN_FILE=$(umask 077; mktemp "/tmp/.signedRequest.XXXXXX") || exit 1
 
 CODEBIG_BLOCK_TIME=1800
 CODEBIG_BLOCK_FILENAME="/tmp/.lastcodebigfail_cdl"
@@ -437,9 +437,9 @@ useCodebigRequest()
             fi
 
             do_Codebig_signing "Xconf"
-	    echo_t "Trying Codebig Communication at $CB_SIGNED_REQUEST"
-            echo_t "Trying Codebig Communication at $CB_SIGNED_REQUEST" >> $XCONF_LOG_FILE
 
+            echo_t "Trying Codebig Communication at $(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
+            echo_t "Trying Codebig Communication at $(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')" >> $XCONF_LOG_FILE
             HTTP_CODE=$("$CURL_PATH/curl" --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FWDL_JSON" "$CB_SIGNED_REQUEST" $CERT_STATUS --connect-timeout 30 -m 30)
             ret=$?
             HTTP_RESPONSE_CODE=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
@@ -728,19 +728,19 @@ getFirmwareUpgDetail()
                     echo_t "XCONF SCRIPT : SSR download is set to : CODEBIG" 
                     echo_t "XCONF SCRIPT : SSR download is set to : CODEBIG" >> $XCONF_LOG_FILE
                     if ! validateFirmwareLocation "$firmwareLocation"; then
-                        echo_t "XCONF SCRIPT : Invalid firmwareLocation received: $firmwareLocation" >> $XCONF_LOG_FILE
+                        echo_t "XCONF SCRIPT : Invalid firmwareLocation received: $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                         return 1
                     fi
  
                     if ! validateFirmwareFilename "$firmwareFilename"; then
-                        echo_t "XCONF SCRIPT : Invalid firmwareFilename received: $firmwareFilename" >> $XCONF_LOG_FILE
+                        echo_t "XCONF SCRIPT : Invalid firmwareFilename received: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                         return 1
                     fi
 		    serverUrl=""
                     authorizationHeader=""
                     imageHTTPURL="$firmwareLocation/$firmwareFilename"
-                    domainName=`echo $imageHTTPURL | awk -F/ '{print $3}'`
-                    imageHTTPURL=`echo $imageHTTPURL | sed -e "s|.*$domainName||g"`
+                    domainName=$(echo "$imageHTTPURL" | awk -F/ '{print $3}')
+                    imageHTTPURL="${imageHTTPURL#*${domainName}}"
                     do_Codebig_signing "SSR" 
                     # firmwareLocation=`echo "$serverUrl" | sed -ne 's/\/'"$firmwareFilename.*"'//p'`
                     echo_t "XCONF SCRIPT : Using updated location :"`echo "$serverUrl" | sed -ne 's/\/'"$firmwareFilename.*"'//p'` 
@@ -927,20 +927,20 @@ fetchFirmwareDetail()
     if [ "$curr_conn_type" != "direct" ]; then
 
         if ! validateFirmwareLocation "$firmwareLocation"; then
-            echo_t "XCONF SCRIPT : Invalid firmwareLocation received: $firmwareLocation" >> $XCONF_LOG_FILE
+            echo_t "XCONF SCRIPT : Invalid firmwareLocation received: $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
             return 1
         fi
 
         if ! validateFirmwareFilename "$firmwareFilename"; then
-            echo_t "XCONF SCRIPT : Invalid firmwareFilename received: $firmwareFilename" >> $XCONF_LOG_FILE
+            echo_t "XCONF SCRIPT : Invalid firmwareFilename received: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
             return 1
         fi
 
         serverUrl=""
         authorizationHeader=""
         imageHTTPURL="$firmwareLocation/$firmwareFilename"
-        domainName=`echo $imageHTTPURL | awk -F/ '{print $3}'`
-        imageHTTPURL=`echo $imageHTTPURL | sed -e "s|.*$domainName||g"`
+        domainName=$(echo "$imageHTTPURL" | awk -F/ '{print $3}')
+        imageHTTPURL="${imageHTTPURL#*${domainName}}"
         do_Codebig_signing "SSR"
     fi
 }
@@ -1465,10 +1465,10 @@ do
                  echo_t "XCONF SCRIPT stateRedRecovery : $firmware_URL/$firmwareFilename" >> $XCONF_LOG_FILE
                  echo_t "XCONF SCRIPT stateRedRecovery : $firmwareFilename " >> $XCONF_LOG_FILE
                  if ! validateFirmwareLocation "$firmware_URL"; then
-                     echo_t "Invalid firmware_URL" >> $XCONF_LOG_FILE
+                     echo_t "Invalid firmware_URL: $(printf '%s' "$firmware_URL" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                      set_url_stat=1
                  elif ! validateFirmwareFilename "$firmwareFilename"; then
-                     echo_t "Invalid firmwareFilename" >> $XCONF_LOG_FILE
+                     echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                      set_url_stat=1
                  else
                      XconfHttpDl set_http_url "$firmware_URL" "$firmwareFilename"
@@ -1477,10 +1477,10 @@ do
              else
                  cert="$(getStateRedCreds)"
                  if ! validateFirmwareLocation "$firmwareLocation"; then
-                     echo_t "Invalid firmwareLocation" >> $XCONF_LOG_FILE
+                     echo_t "Invalid firmwareLocation $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                      set_url_stat=1
                  elif ! validateFirmwareFilename "$firmwareFilename"; then
-                     echo_t "Invalid firmwareFilename" >> $XCONF_LOG_FILE
+                     echo_t "Invalid firmwareFilename $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                      set_url_stat=1
                  else
                      $BIN_PATH/XconfHttpDl set_http_url " $cert $firmwareLocation/$firmwareFilename " "$firmwareFilename" complete_url
@@ -1491,10 +1491,10 @@ do
               echo_t "XCONF SCRIPT : URL --- --tlsv1.2 -fgL $firmware_URL and NAME --- $firmwareFilename"
               echo_t "XCONF SCRIPT : URL --- --tlsv1.2 -fgL $firmware_URL and NAME --- $firmwareFilename" >> $XCONF_LOG_FILE
               if ! validateFirmwareLocation "$firmware_URL"; then
-                  echo_t "Invalid firmware_URL" >> $XCONF_LOG_FILE
+                  echo_t "Invalid firmware_URL $(printf '%s' "$firmware_URL" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                   set_url_stat=1
               elif ! validateFirmwareFilename "$firmwareFilename"; then
-                  echo_t "Invalid firmwareFilename" >> $XCONF_LOG_FILE
+                  echo_t "Invalid firmwareFilename $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                   set_url_stat=1
               else
                   XconfHttpDl set_http_url "$firmware_URL" "$firmwareFilename"
@@ -1503,10 +1503,10 @@ do
 
           elif [ "$CERT" != "" ]; then
               if ! validateFirmwareLocation "$firmwareLocation"; then
-                  echo_t "Invalid firmwareLocation" >> $XCONF_LOG_FILE
+                  echo_t "Invalid firmwareLocation $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                   set_url_stat=1
               elif ! validateFirmwareFilename "$firmwareFilename"; then
-                  echo_t "Invalid firmwareFilename" >> $XCONF_LOG_FILE
+                  echo_t "Invalid firmwareFilename $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                   set_url_stat=1
               else
                   #Use the MTLS certificates for all platforms"
@@ -1519,10 +1519,10 @@ do
               echo_t "XCONF SCRIPT : URL --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename"
               echo_t "XCONF SCRIPT : URL --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename" >> $XCONF_LOG_FILE
               if ! validateFirmwareLocation "$firmwareLocation"; then
-                  echo_t "Invalid firmwareLocation" >> $XCONF_LOG_FILE
+                  echo_t "Invalid firmwareLocation $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                   set_url_stat=1
               elif ! validateFirmwareFilename "$firmwareFilename"; then
-                  echo_t "Invalid firmwareFilename" >> $XCONF_LOG_FILE
+                  echo_t "Invalid firmwareFilename $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                   set_url_stat=1
               else
                   XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename"

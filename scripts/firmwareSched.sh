@@ -426,9 +426,9 @@ fi
                 echo_t "XCONF SCRIPT: Timezone mode not yet supported on this platform; falling back to UTC schedule." >> "$XCONF_LOG_FILE"
                 t2ValNotify "FW_DL_TIME_MODE_split" "TimezoneUnsupported"
            fi
-           cronPattern=$(sed -n 's/^urn:settings:CheckSchedule:cron=//p' "$FORMATTED_TMP_DCM_RESPONSE" | head -n1)
+
            if ! validateCronPattern "$cronPattern"; then
-               echo_t "XCONF SCRIPT: Invalid cron pattern received"
+               echo_t "XCONF SCRIPT: Invalid cron pattern received" >> "$XCONF_LOG_FILE"
                cronPattern=""
            fi
 

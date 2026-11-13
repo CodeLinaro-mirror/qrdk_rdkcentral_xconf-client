@@ -655,7 +655,8 @@ getFirmwareUpgDetail()
             # Query the  XCONF Server, using TLS 1.2
             echo_t "Attempting TLS1.2 connection to $xconf_url " >> $XCONF_LOG_FILE
             curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FILENAME" "$CB_SIGNED_REQUEST" -m 30 > "$HTTP_CODE"
-            ret=$?
+            echo_t "$(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
+	    ret=$?
 
             HTTP_RESPONSE_CODE=$(awk -F\" '{print $1}' $HTTP_CODE)
             echo_t "ret = $ret http_code: $HTTP_RESPONSE_CODE" >> $XCONF_LOG_FILE
