@@ -114,6 +114,11 @@ INT Set_HTTP_Download_Url(char *pHttpUrl, char *pfilename) {
         char pGetFilename[CM_FILENAME_LEN] = {'0'};
         errno_t rc = -1;
 
+        if(pfilename ==  NULL || strlen(pfilename) >= CM_FILENAME_LEN)
+        {
+            printf("\nXCONF BIN : Invalid filename or filename too long\n");
+	    return ret_stat;
+	}
         /*Set the HTTP download URL*/
 #ifdef FEATURE_FWUPGRADE_MANAGER
         ret_stat = fwupgrade_hal_set_download_url(pHttpUrl, pfilename);
@@ -631,7 +636,8 @@ int main(int argc,char *argv[])
 
                   if (!valid_url || !valid_filename) {
                       printf("XCONF BIN: Invalid URL or filename.\n");
-                      return -1; /* Adapt to the existing function's error handl    ing. */
+                      ret_code = 1;
+		      return ret_code;
                   }
                   pfilename = argv[3];
 
