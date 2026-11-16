@@ -298,6 +298,11 @@ useDirectRequest()
             curr_conn_type="direct"
             echo_t "Trying Direct Communication"
             echo_t "Trying Direct Communication" >> $XCONF_LOG_FILE
+	    CURL_CMD_LOG="$CURL_PATH/curl --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -d \"$JSONSTR\" -o \"$FWDL_JSON\" \"$xconf_url\" $CERT_STATUS --connect-timeout 30 -m 30"
+
+            echo_t "CURL_CMD:$CURL_CMD_LOG"
+            echo_t "CURL_CMD:$CURL_CMD_LOG" >> $XCONF_LOG_FILE
+
             HTTP_CODE=$("$CURL_PATH/curl" --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$JSONSTR" -o "$FWDL_JSON" "$xconf_url" $CERT_STATUS --connect-timeout 30 -m 30)
             ret=$?
             HTTP_RESPONSE_CODE=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
@@ -326,6 +331,14 @@ useCodebigRequest()
                 return 1
             fi
             do_Codebig_signing "Xconf"
+            CURL_CMD_LOG="$CURL_PATH/curl --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -o \"$FWDL_JSON\" <CB_SIGNED_REQUEST> $CERT_STATUS --connect-timeout 30 -m 30"
+
+            echo_t "Trying Codebig Communication at $(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
+            echo_t "Trying Codebig Communication at $(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')" >> $XCONF_LOG_FILE
+
+            echo_t "CURL_CMD: $CURL_CMD_LOG"
+            echo_t "CURL_CMD: $CURL_CMD_LOG" >> $XCONF_LOG_FILE 
+
             HTTP_CODE=$("$CURL_PATH/curl" --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FWDL_JSON" "$CB_SIGNED_REQUEST" $CERT_STATUS --connect-timeout 30 -m 30)
             ret=$?
             HTTP_RESPONSE_CODE=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
@@ -1216,7 +1229,6 @@ do
         then
             touch $DOWNLOAD_INPROGRESS
         fi
-       echo "$firmwareLocation" > /tmp/xconfdownloadurl
        echo_t "XCONF SCRIPT : HTTP SSR set for $curr_conn_type download"
        echo_t "XCONF SCRIPT : HTTP SSR set for $curr_conn_type download" >> $XCONF_LOG_FILE
 
@@ -1230,7 +1242,7 @@ do
               echo_t "Invalid firmwareFilename: $firmwareFilename" >> "$XCONF_LOG_FILE"
               set_url_stat=1
           else        
-              $BIN_PATH/XconfHttpDl set_http_url "$firmwareLocation/$firmwareFilename" "$firmwareFilename" complete_url
+              $BIN_PATH/XconfHttpDl set_http_url "$addr_type -fgL '$firmwareLocation/$firmwareFilename'" "$firmwareFilename" complete_url
               set_url_stat=$?
           fi 
        else
@@ -1248,7 +1260,7 @@ do
               set_url_stat=$?
           fi
        fi
-        
+       echo "$firmwareLocation" > /tmp/xconfdownloadurl 
         # If the URL was correctly set, initiate the download
         if [ $set_url_stat -eq 0 ];then
         

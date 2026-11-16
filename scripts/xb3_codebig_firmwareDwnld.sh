@@ -622,7 +622,9 @@ getFirmwareUpgDetail()
 
 			# Query the  XCONF Server, using TLS 1.2
 			echo_t "Attempting TLS1.2 connection to $xconf_url " >> $XCONF_LOG_FILE
-                        curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$POSTSTR" -o "$FILENAME" "$xconf_url" -m 30 > "$HTTP_CODE"
+                        echo_t "CURL_CMD: curl $CERT_STATUS --connect-timeout 30 --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -d \"$POSTSTR\" -o \"$FILENAME\" \"$xconf_url\" -m 30"
+                        echo_t "CURL_CMD: curl $CERT_STATUS --connect-timeout 30 --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -d \"$POSTSTR\" -o \"$FILENAME\" \"$xconf_url\" -m 30" >> "$XCONF_LOG_FILE"
+			curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$POSTSTR" -o "$FILENAME" "$xconf_url" -m 30 > "$HTTP_CODE"
 			ret=$?
 
 			HTTP_RESPONSE_CODE=$(awk -F\" '{print $1}' $HTTP_CODE)
@@ -654,6 +656,11 @@ getFirmwareUpgDetail()
 
             # Query the  XCONF Server, using TLS 1.2
             echo_t "Attempting TLS1.2 connection to $xconf_url " >> $XCONF_LOG_FILE
+            CURL_CMD_LOG="curl $CERT_STATUS --connect-timeout 30 --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -o \"$FILENAME\" <CB_SIGNED_REQUEST> -m 30"
+
+            echo_t "CURL_CMD:$CURL_CMD_LOG"
+            echo_t "CURL_CMD:$CURL_CMD_LOG" >> "$XCONF_LOG_FILE"
+
             curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FILENAME" "$CB_SIGNED_REQUEST" -m 30 > "$HTTP_CODE"
             echo_t "$(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
 	    ret=$?

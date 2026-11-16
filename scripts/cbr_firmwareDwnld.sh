@@ -405,6 +405,10 @@ useDirectRequest()
             if [ "0x$stateRed" == "0x1" ]; then
                 stateRedlog "XCONF SCRIPT : stateRedRecovery - attempting MTLS connection to XCONF server"
                 CERT="$(getStateRedCreds)"
+                #echo_t "CURL_CMD: curl --interface $interface $addr_type --tlsv1.2 -o $FWDL_JSON \"$xconf_url\" --connect-timeout 30 -m 30"
+                echo_t "CURL_CMD: $CURL_PATH/curl [CERT_ARGS] $CURL_ARGS"
+                echo_t "CURL_CMD: $CURL_PATH/curl [CERT_ARGS] $CURL_ARGS" >> "$XCONF_LOG_FILE"
+
                 GetConfigFile /tmp/stateredxpki stdout | sed -e 's/^/--pass /' | "$CURL_PATH/curl" $CERT --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$JSONSTR" -o "$FWDL_JSON" "$xconf_url" $CERT_STATUS --connect-timeout 30 -m 30 > "$HTTP_CODE"
                 ret=$?
 		echo_t "XCONF SCRIPT : stateRedRecovery - attempting MTLS connection to $xconf_url"
@@ -449,7 +453,9 @@ useCodebigRequest()
 
             echo_t "Trying Codebig Communication at $(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
             echo_t "Trying Codebig Communication at $(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')" >> $XCONF_LOG_FILE
-            HTTP_CODE=$("$CURL_PATH/curl" --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FWDL_JSON" "$CB_SIGNED_REQUEST" $CERT_STATUS --connect-timeout 30 -m 30)
+            echo_t "CURL_CMD: $CURL_PATH/curl --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -o $FWDL_JSON <CB_SIGNED_REQUEST> $CERT_STATUS --connect-timeout 30 -m 30"
+            echo_t "CURL_CMD: $CURL_PATH/curl --interface $interface $addr_type -w '%{http_code}\n' --tlsv1.2 -o $FWDL_JSON <CB_SIGNED_REQUEST> $CERT_STATUS --connect-timeout 30 -m 30" >> "$XCONF_LOG_FILE"
+	    HTTP_CODE=$("$CURL_PATH/curl" --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FWDL_JSON" "$CB_SIGNED_REQUEST" $CERT_STATUS --connect-timeout 30 -m 30)
             ret=$?
             HTTP_RESPONSE_CODE=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
             echo_t "Codebig Communication - ret:$ret, http_code:$HTTP_RESPONSE_CODE" | tee -a $XCONF_LOG_FILE ${LOG_PATH}/TlsVerify.txt
@@ -1456,7 +1462,6 @@ do
         then
             touch $DOWNLOAD_INPROGRESS
         fi
-       echo "$firmwareLocation" > /tmp/xconfdownloadurl
 
        if [ "$direct_CDN" = "true" ];then
             echo_t "XCONF SCRIPT : HTTP CDN_Direct set for $curr_conn_type download"
@@ -1492,7 +1497,7 @@ do
                      echo_t "Invalid firmwareFilename $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                      set_url_stat=1
                  else
-                     $BIN_PATH/XconfHttpDl set_http_url " $cert $firmwareLocation/$firmwareFilename " "$firmwareFilename" complete_url
+                     $BIN_PATH/XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$cert"
                      set_url_stat=$?
                  fi
              fi
@@ -1519,7 +1524,7 @@ do
                   set_url_stat=1
               else
                   #Use the MTLS certificates for all platforms"
-                  XconfHttpDl set_http_url " $CERT $firmwareLocation/$firmwareFilename " "$firmwareFilename" complete_url
+                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
                   set_url_stat=$?
               fi
               echo_t "XCONF SCRIPT : URL with certificate --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename"
@@ -1545,7 +1550,8 @@ do
           $BIN_PATH/XconfHttpDl set_http_url "$CURL_SSR_PARAM" "$firmwareFilename" complete_url
           set_url_stat=$?
        fi
-        
+       echo "$firmwareLocation" > /tmp/xconfdownloadurl
+
        # If the URL was correctly set, initiate the download
        if [ $set_url_stat -eq 0 ];then
         
