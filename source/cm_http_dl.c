@@ -117,7 +117,7 @@ INT Set_HTTP_Download_Url(char *pHttpUrl, char *pfilename) {
         if(pfilename ==  NULL || strlen(pfilename) >= CM_FILENAME_LEN)
         {
             printf("\nXCONF BIN : Invalid filename or filename too long\n");
-	    return ret_stat;
+	    return 1;
 	}
         /*Set the HTTP download URL*/
 #ifdef FEATURE_FWUPGRADE_MANAGER

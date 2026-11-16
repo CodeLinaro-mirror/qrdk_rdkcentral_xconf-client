@@ -196,16 +196,20 @@ checkFirmwareUpgCriteria()
     currentVersion=`getCurrentFw`
     current_FW_Version=$currentVersion
     update_FW_Version=$firmwareVersion
-    if ![ -n "$current_FW_Version" ] && echo "$current_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-        echo_t "Invalid current_FW_Version: $(printf '%s' "$current_FW_Version" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-        rm -f /tmp/.downloadingfw
-        exit 1
-    fi
-    if ![ -n "$update_FW_Version" ] && echo "$update_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-        echo_t "Invalid update_FW_Version: $(printf '%s' "$update_FW_Version" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-        rm -f /tmp/.downloadingfw
-        exit 1
-    fi
+    case "$current_FW_Version" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo_t "Invalid current_FW_Version: $(printf '%s' "$current_FW_Version" | tr -c '[:print:]' '?')" >> "$XCONF_LOG_FILE"
+            rm -f /tmp/.downloadingfw
+            exit 1
+            ;;
+    esac
+    case "$update_FW_Version" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo_t "Invalid update_FW_Version: $(printf '%s' "$update_FW_Version" | tr -c '[:print:]' '?')" >> "$XCONF_LOG_FILE"
+            rm -f /tmp/.downloadingfw
+            exit 1
+            ;;
+    esac 
     #Comcast signed firmware images are represented in lower case and vendor signed images are represented in upper case.
     #In order to avoid confusion in string comparison, converting both currentVersion and firmwareVersion to lower case.
     currentVersion=`echo $currentVersion | tr '[A-Z]' '[a-z]'`
@@ -301,7 +305,7 @@ do_Codebig_signing()
             request_type=1
             imageHTTPURL=$(printf '%s' "$imageHTTPURL" | tr -d '\r\n')
             if ! printf '%s\n' "$imageHTTPURL" |
-                grep -Eq '^https://[A-Za-z0-9:/._-]+$'; then
+                grep -Eq '^/[A-Za-z0-9/._%-]+$'; then
                 echo_t "Invalid imageHTTPURL" >> "$XCONF_LOG_FILE"
 		return 1
             fi
@@ -315,7 +319,7 @@ do_Codebig_signing()
                echo_t "Invalid accountId or partnerId" >> "$XCONF_LOG_FILE"
                return 1
             fi
-            configparamgen "$request_type" "$imageHTTPURL" >> $XCONF_LOG_FILE
+            echo_t "configparamgen request_type=$request_type" >> "$XCONF_LOG_FILE"
             echo -e "\n"
             configparamgen "$request_type" "$imageHTTPURL" > $SIGN_FILE
             cbSignedimageHTTPURL=`cat $SIGN_FILE`
@@ -335,7 +339,8 @@ do_Codebig_signing()
                 [ "$firmwareFilename" = "." ] ||
                 [ "$firmwareFilename" = ".." ]; then
                 echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-                return 1
+                rm -f /tmp/.downloadingfw
+		return 1
             fi
             authorizationHeader=`echo $cbSignedimageHTTPURL | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*oauth_consumer_key|oauth_consumer_key|g"`
             authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
@@ -350,11 +355,11 @@ do_Codebig_signing()
                 return 1
             fi
             "$CURL_PATH/curl" \
-                "$CERT_STATUS" \
+                $CERT_STATUS \
                 --connect-timeout 30 \
                 --tlsv1.2 \
                 --interface "$interface" \
-                "$addr_type" \
+                $addr_type \
                 --header "@$auth_tmp" \
                 --write-out '%{http_code}\n' \
                 --fail \
@@ -1505,10 +1510,10 @@ do
         if ! printf '%s\n' "$firmwareLocation" |
             grep -Eq '^https://[A-Za-z0-9./_-]+$'; then
             echo_t "Invalid firmwareLocation: $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-            rm -f -- "$DOWNLOAD_INPROGRESS"
-            return 1
+            rm -f /tmp/.downloadingfw
+            exit 1
         fi
-	echo "$firmwareLocation" > /tmp/xconfdownloadurr
+	echo "$firmwareLocation" > /tmp/xconfdownloadurl
         # Validate firmware filename: no slash, whitespace, or leading dash.
         if ! printf '%s\n' "$firmwareFilename" |
             grep -Eq '^[A-Za-z0-9._-]+$' ||
@@ -1516,9 +1521,9 @@ do
             [ "$firmwareFilename" = ".." ] ||
             [ "${firmwareFilename#-}" != "$firmwareFilename" ]; then
             echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE 
-            rm -f -- "$DOWNLOAD_INPROGRESS"
-            return 1
-        fi
+            rm -f /tmp/.downloadingfw
+	    exit 1
+	fi
         case "$firmwareFilename" in
             -*)
             echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
@@ -1544,7 +1549,7 @@ do
        else
           # Set the url and filename
           echo_t "XCONF SCRIPT : URL --- `echo $serverUrl |  sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename"
-          echo_t "XCONF SCRIPT : URL --- `echo $serverUrl |  sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')" >> $XCONF_LOG_FILE
+          echo_t "XCONF SCRIPT : URL --- $(printf '%s\n' "$serverUrl" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g')" >> "$XCONF_LOG_FILE"
 #          $BIN_PATH/XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename"
        fi
 

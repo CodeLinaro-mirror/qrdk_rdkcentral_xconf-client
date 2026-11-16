@@ -242,16 +242,20 @@ checkFirmwareUpgCriteria()
     currentVersion=`getCurrentFw`
     current_FW_Version=$currentVersion
     update_FW_Version=$firmwareVersion
-    if ![ -n "$current_FW_Version" ] && echo "$current_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-        echo_t "Invalid current_FW_Version: $(printf '%s' "$current_FW_Version" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-        rm -f /tmp/.downloadingfw
-        exit 1
-    fi
-    if ![ -n "$update_FW_Version" ] && echo "$update_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-        echo_t "Invalid update_FW_Version: $(printf '%s' "$update_FW_Version" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-        rm -f /tmp/.downloadingfw
-        exit 1
-    fi
+    case "$current_FW_Version" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo_t "Invalid current_FW_Version: $(printf '%s' "$current_FW_Version" | tr -c '[:print:]' '?')" >> "$XCONF_LOG_FILE"
+            rm -f /tmp/.downloadingfw
+            exit 1
+            ;;
+    esac
+    case "$update_FW_Version" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo_t "Invalid update_FW_Version: $(printf '%s' "$update_FW_Version" | tr -c '[:print:]' '?')" >> "$XCONF_LOG_FILE"
+            rm -f /tmp/.downloadingfw
+            exit 1
+            ;;
+    esac 
     #Comcast signed firmware images are represented in lower case and vendor signed images are represented in upper case.
     #In order to avoid confusion in string comparison, converting both currentVersion and firmwareVersion to lower case.
     currentVersion=`echo $currentVersion | tr '[A-Z]' '[a-z]'`

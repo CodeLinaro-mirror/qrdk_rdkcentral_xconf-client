@@ -190,6 +190,20 @@ checkFirmwareUpgCriteria()
     currentVersion=`getCurrentFw`
     current_FW_Version=$currentVersion
     update_FW_Version=$firmwareVersion
+    case "$current_FW_Version" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo_t "Invalid current_FW_Version: $(printf '%s' "$current_FW_Version" | tr -c '[:print:]' '?')" >> "$XCONF_LOG_FILE"
+            rm -f /tmp/.downloadingfw
+            exit 1
+            ;;
+    esac
+    case "$update_FW_Version" in
+        ''|*[!A-Za-z0-9._-]*)
+            echo_t "Invalid update_FW_Version: $(printf '%s' "$update_FW_Version" | tr -c '[:print:]' '?')" >> "$XCONF_LOG_FILE"
+            rm -f /tmp/.downloadingfw
+            exit 1
+            ;;
+    esac    
     #Comcast signed firmware images are represented in lower case and vendor signed images are represented in upper case.
     #In order to avoid confusion in string comparison, converting both currentVersion and firmwareVersion to lower case.
     currentVersion=`echo $currentVersion | tr '[A-Z]' '[a-z]'`
@@ -1257,7 +1271,7 @@ do
               set_url_stat=1
           else
               $BIN_PATH/XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename" complete_url
-              set_url_stat=$?
+	      set_url_stat=$?
           fi
        fi
        echo "$firmwareLocation" > /tmp/xconfdownloadurl 
@@ -1302,14 +1316,6 @@ do
 		else
 			reboot_flag="deferred"
 		fi
-		if ! echo "$current_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-                    echo_t "XCONF SCRIPT : Invalid current_FW_Version: $current_FW_Version" >> $XCONF_LOG_FILE
-                    return 1
-                fi
-                if ! echo "$update_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
-                    echo_t "XCONF SCRIPT : Invalid update_FW_Version: $update_FW_Version" >> $XCONF_LOG_FILE
-                    return 1
-                fi
 		FW_DWLD_NOTIFICATION_STRING="$current_time,$reboot_flag,$current_FW_Version,$update_FW_Version"
 		echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification parameters are $FW_DWLD_NOTIFICATION_STRING" >> $XCONF_LOG_FILE
 		dmcli eRT setv Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.RPC.FirmwareDownloadStartedNotification string "$FW_DWLD_NOTIFICATION_STRING"
