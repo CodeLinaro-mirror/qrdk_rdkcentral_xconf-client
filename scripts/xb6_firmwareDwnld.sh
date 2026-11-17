@@ -398,7 +398,7 @@ do_Codebig_signing()
             fi
             authorizationHeader=`echo $cbSignedimageHTTPURL | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*oauth_consumer_key|oauth_consumer_key|g"`
             authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-            set -- -H "$authorizationHeader" -- "$serverUrl"
+            CURL_SSR_PARAM="-H '$authorizationHeader' '$serverUrl'"
       fi
 }
 
@@ -425,7 +425,7 @@ useDirectRequest()
             if [ "0x$stateRed" == "0x1" ]; then
                 stateRedlog "XCONF SCRIPT : stateRedRecovery - attempting MTLS connection to XCONF server"
                 CERT="$(getStateRedCreds)"
-                result=$(GetConfigFile /tmp/stateredxpki stdout | sed -e 's/^/--pass /' | "$CURL_PATH/curl" $CERT $CURL_ARGS > "$HTTP_CODE")
+                result=$(GetConfigFile /tmp/stateredxpki stdout | sed -e 's/^/--pass /' | "$CURL_PATH/curl" $CERT --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$JSONSTR" -o "$FWDL_JSON" "$xconf_url" $CERT_STATUS --connect-timeout 30 -m 30 > "$HTTP_CODE")
                 ret=$?
                 echo_t "CURL_CMD:`echo "$CURL_CMD" | cut -d "|" -f3`"
                 echo_t "CURL_CMD:`echo "$CURL_CMD" | cut -d "|" -f3`" >> $XCONF_LOG_FILE
@@ -1544,12 +1544,6 @@ do
         #echo_t "XCONF SCRIPT : Whitelisting download location : $firmwareLocation" >> $XCONF_LOG_FILE
         #/etc/whitelist.sh "$firmwareLocation"
 
-        # Strict validation of firmwareLocation
-        if ! echo "$firmwareLocation" | grep -Eq '^https://[A-Za-z0-9./_-]+$'; then
-            echo_t "Invalid firmwareLocation: $(printf '%s' "$firmwareLocation" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE 
-            rm -f /tmp/.downloadingfw
-            exit 1
-        fi
         # Strict validation of firmwareFilename
         if ! echo "$firmwareFilename" | grep -Eq '^[A-Za-z0-9._-]+$' || [ "$firmwareFilename" = "." ] || [ "$firmwareFilename" = ".." ]; then
             echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
@@ -1623,8 +1617,8 @@ do
               set_url_stat=$?
 	  fi
         else
-          if ! echo "$firmware_URL" | grep -Eq '^https://[A-Za-z0-9./_-]+$'; then
-              echo_t "XCONF SCRIPT : Invalid firmware_URL" >> "$XCONF_LOG_FILE"
+          if ! printf '%s\n' "$serverUrl" | grep -Eq '^https://[A-Za-z0-9:/._-]+$'; then
+               echo_t "XCONF SCRIPT : Invalid serverUrl" >> "$XCONF_LOG_FILE"
               set_url_stat=1
               rm -f /tmp/.downloadingfw
               exit 1
@@ -1637,7 +1631,7 @@ do
           fi
           # Set the url and filename
           echo_t "XCONF SCRIPT : Setting validation firmware download URL" >> "$XCONF_LOG_FILE"
-          XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename" "$complete_url"
+          XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename" complete_url
           set_url_stat=$?
         fi
         

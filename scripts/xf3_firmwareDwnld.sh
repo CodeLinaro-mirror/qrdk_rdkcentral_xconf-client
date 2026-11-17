@@ -354,22 +354,8 @@ do_Codebig_signing()
                 rm -f -- "$auth_tmp"
                 return 1
             fi
-            "$CURL_PATH/curl" \
-                $CERT_STATUS \
-                --connect-timeout 30 \
-                --tlsv1.2 \
-                --interface "$interface" \
-                $addr_type \
-                --header "@$auth_tmp" \
-                --write-out '%{http_code}\n' \
-                --fail \
-                --location \
-                --output "${TMP_PATH%/}/$firmwareFilename" \
-                -- "$serverUrl"
-            curl_status=$?
+            curl $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface "$interface" -H "$authorizationHeader" $addr_type -w '%{http_code}\n' -fgLo "$TMP_PATH/$BIN_PATH" "$serverUrl"
             rm -f -- "$auth_tmp"
-
-            return "$curl_status"
       fi
 }
 
@@ -1535,21 +1521,16 @@ do
           # Set the url and filename
           echo_t "XCONF SCRIPT : URL --- $firmwareLocation and NAME --- $firmwareFilename"
           echo_t "XCONF SCRIPT : URL --- $firmwareLocation and NAME --- $firmwareFilename" >> $XCONF_LOG_FILE
-          curl \
-              $CERT_STATUS \
-              --connect-timeout 30 \
-              --tlsv1.2 \
-              --interface "$interface" \
-              $addr_type \
-              -w '%{http_code}\n' \
-              -fgLo "$TMP_PATH/$firmwareFilename" \
-              -- \
-              "$firmwareLocation/$firmwareFilename"
+          CURL_CMD_SSR="curl $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface $interface $addr_type -w '%{http_code}\n' -fgLo $TMP_PATH/$firmwareFilename '$firmwareLocation/$firmwareFilename'"
+          echo_t "Direct CURL_CMD : $CURL_CMD_SSR"
+          echo_t "Direct CURL_CMD : $CURL_CMD_SSR" >> $XCONF_LOG_FILE
 #          $BIN_PATH/XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename"
        else
           # Set the url and filename
           echo_t "XCONF SCRIPT : URL --- `echo $serverUrl |  sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename"
           echo_t "XCONF SCRIPT : URL --- $(printf '%s\n' "$serverUrl" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g')" >> "$XCONF_LOG_FILE"
+          echo_t "Codebig CURL_CMD :`echo  "$CURL_CMD_SSR" |  sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'`"
+          echo_t "Codebig CURL_CMD :`echo  "$CURL_CMD_SSR" |  sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'`" >> $XCONF_LOG_FILE
 #          $BIN_PATH/XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename"
        fi
 
@@ -1602,19 +1583,7 @@ do
            numberOfTries=5
            while [ $currentTry -lt $numberOfTries ]; 
            do
-                HTTP_CODE=$(
-                "$CURL_PATH/curl" \
-             	        $CERT_STATUS \
-                        --connect-timeout 30 \
-                        --tlsv1.2 \
-                        --interface "$interface" \
-                        $addr_type \
-                        --write-out '%{http_code}\n' \
-                        --fail \
-                        --location \
-                        --output "$TMP_PATH/$firmwareFilename" \
-                        -- "$firmwareLocation/$firmwareFilename"
-                )
+		HTTP_CODE=$("$CURL_PATH/curl" $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface "$interface" $addr_type --write-out '%{http_code}' --fail --location --output "$TMP_PATH/$firmwareFilename" -- "$firmwareLocation/$firmwareFilename")
 		curl_code=$?
 		HTTP_RESPONSE_CODE=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
 		echo_t "XCONF SCRIPT : Download URL : $firmwareLocation/$firmwareFilename" >> $XCONF_LOG_FILE  

@@ -602,10 +602,6 @@ int main(int argc,char *argv[])
                   int valid_url = 1;
                   int valid_filename = 1;
 
-                  /* Require HTTPS and allow only approved URL characters. */
-                  if (strncmp(argv[2], "https://", 8) != 0) {
-                      valid_url = 0;
-                  }
                   for (i = 0; argv[2][i] != '\0'; i++) {
                       unsigned char c = (unsigned char)argv[2][i];
                       if (!((c >= 'A' && c <= 'Z') ||
