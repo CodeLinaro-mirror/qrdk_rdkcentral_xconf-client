@@ -1501,7 +1501,7 @@ do
                      echo_t "Invalid firmwareFilename $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
                      set_url_stat=1
                  else
-                     $BIN_PATH/XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$cert"
+                     $BIN_PATH/XconfHttpDl set_http_url "$firmwareLocation/$firmwareFilename" "$firmwareFilename" complete_url --cert "$cert"
                      set_url_stat=$?
                  fi
              fi
@@ -1528,7 +1528,7 @@ do
                   set_url_stat=1
               else
                   #Use the MTLS certificates for all platforms"
-                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
+                  XconfHttpDl set_http_url "$firmwareLocation/$firmwareFilename" "$firmwareFilename" complete_url --cert "$CERT"
                   set_url_stat=$?
               fi
               echo_t "XCONF SCRIPT : URL with certificate --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename"

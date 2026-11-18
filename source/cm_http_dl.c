@@ -587,10 +587,11 @@ static int is_safe_value(const char *s)    /* value goes inside '...': no quote,
 }
 
 /* Allow-list of options accepted after "complete_url". name = script arg, out = text given to the HAL. */
-static const struct { const char *name; const char *out; int has_value; } g_opts[] = {
-    { "-4",       "-4",   0 },
-    { "-fgL",     "-fgL", 0 },
-    { "--header", "-H",   1 },
+static const struct { const char *name; const char *out; int has_value; int quote_value; int is_cert; } g_opts[] = {
+    { "-4",       "-4",   0, 0, 0 },
+    { "-fgL",     "-fgL", 0, 0, 0 },
+    { "--header", "-H",   1, 1, 0 },
+    { "--cert",   "",     1, 0, 1 },   /* develop sent: <cert args> <url>, unquoted */
 };
 
 static int append_str(char *buf, size_t sz, size_t *len, const char *s)
@@ -607,7 +608,7 @@ static int append_str(char *buf, size_t sz, size_t *len, const char *s)
 static int build_complete_url(char *out, size_t sz, char **opts, const char *url)
 {
     size_t len = 0, i, k;
-    int any = 0;
+    int any = 0, cert_seen = 0;
 
     out[0] = '\0';
     for (i = 0; opts[i] != NULL; i++) {
@@ -615,16 +616,22 @@ static int build_complete_url(char *out, size_t sz, char **opts, const char *url
         for (k = 0; k < sizeof(g_opts) / sizeof(g_opts[0]); k++) {
             if (strcmp(opts[i], g_opts[k].name) != 0) continue;
             found = 1;
-            if (!append_str(out, sz, &len, g_opts[k].out)) goto too_long;
+            if (g_opts[k].out[0] && !append_str(out, sz, &len, g_opts[k].out)) goto too_long;
             if (g_opts[k].has_value) {
                 if (opts[i + 1] == NULL || !is_safe_value(opts[i + 1])) {
                     printf("XCONF BIN : invalid value for %s\n", g_opts[k].name);
                     return 0;
                 }
                 i++;
-                if (!append_str(out, sz, &len, " '") || !append_str(out, sz, &len, opts[i]) ||
-                    !append_str(out, sz, &len, "'")) goto too_long;
+                if (g_opts[k].quote_value) {
+                    if (!append_str(out, sz, &len, " '") || !append_str(out, sz, &len, opts[i]) ||
+                        !append_str(out, sz, &len, "'")) goto too_long;
+                } else {
+                    if ((g_opts[k].out[0] && !append_str(out, sz, &len, " ")) ||
+                        !append_str(out, sz, &len, opts[i])) goto too_long;
+                }
             }
+            if (g_opts[k].is_cert) cert_seen = 1;
             if (!append_str(out, sz, &len, " ")) goto too_long;
             any = 1;
             break;
@@ -635,10 +642,10 @@ static int build_complete_url(char *out, size_t sz, char **opts, const char *url
         }
     }
 
-    if (any) {
+    if (any && !cert_seen) {
         if (!append_str(out, sz, &len, "'") || !append_str(out, sz, &len, url) ||
             !append_str(out, sz, &len, "'")) goto too_long;
-    } else if (!append_str(out, sz, &len, url)) {   /* bare URL, same as develop (xb3_codebig) */
+    } else if (!append_str(out, sz, &len, url)) {   /* bare URL, or cert form: URL unquoted like develop */
         goto too_long;
     }
     return 1;

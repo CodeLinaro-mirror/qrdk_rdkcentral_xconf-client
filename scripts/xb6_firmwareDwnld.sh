@@ -1587,7 +1587,7 @@ do
                   echo_t "XCONF SCRIPT stateRedRecovery : $cert" >> $XCONF_LOG_FILE
                   echo_t "XCONF SCRIPT stateRedRecovery : $firmwareLocation/$firmwareFilename" >> $XCONF_LOG_FILE
                   echo_t "XCONF SCRIPT stateRedRecovery : $firmwareFilename " >> $XCONF_LOG_FILE
-                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$cert"
+                  XconfHttpDl set_http_url "$firmwareLocation/$firmwareFilename" "$firmwareFilename" complete_url --cert "$cert"
                   set_url_stat=$?
               fi
           elif [ "$direct_CDN" = "true" ] && [ $CDL_SERVER_OVERRIDE != 1 ];then
@@ -1605,7 +1605,7 @@ do
               if [ "$BOX_TYPE" = "SR300" ] || [ "$BOX_TYPE" = "SR213" ] || [ "$BOX_TYPE" = "SCER11BEL" ] || [ "x$BOX_TYPE" = "xSCXF11BFL" ] || [ "x$BOX_TYPE" = "xXER2" ]; then
                   XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
               else
-                  XconfHttpDl set_http_url "$firmwareLocation" "$firmwareFilename" "$CERT"
+                  XconfHttpDl set_http_url "$firmwareLocation/$firmwareFilename" "$firmwareFilename" complete_url --cert "$CERT"
               fi
               set_url_stat=$?
               echo_t "XCONF SCRIPT : URL with certificate --- --tlsv1.2 -fgL $firmwareLocation and NAME --- $firmwareFilename"
