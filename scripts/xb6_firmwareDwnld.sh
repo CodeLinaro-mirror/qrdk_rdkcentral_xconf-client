@@ -1627,7 +1627,7 @@ do
           # Set the url and filename
           echo_t "XCONF SCRIPT : URL --- `echo "$CURL_SSR_PARAM"| sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename"
           echo_t "XCONF SCRIPT : URL --- `echo "$CURL_SSR_PARAM"| sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename" >> $XCONF_LOG_FILE
-          XconfHttpDl set_http_url "$CURL_SSR_PARAM" "$firmwareFilename" complete_url
+          XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename" complete_url --header "$authorizationHeader"
           set_url_stat=$?
         fi
         

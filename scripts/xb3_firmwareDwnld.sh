@@ -1256,7 +1256,7 @@ do
               echo_t "Invalid firmwareFilename: $firmwareFilename" >> "$XCONF_LOG_FILE"
               set_url_stat=1
           else        
-              $BIN_PATH/XconfHttpDl set_http_url "$addr_type -fgL '$firmwareLocation/$firmwareFilename'" "$firmwareFilename" complete_url
+              $BIN_PATH/XconfHttpDl set_http_url "$firmwareLocation/$firmwareFilename" "$firmwareFilename" complete_url $addr_type -fgL
               set_url_stat=$?
           fi 
        else
@@ -1270,7 +1270,7 @@ do
               echo_t "Invalid firmwareFilename" >> "$XCONF_LOG_FILE"
               set_url_stat=1
           else
-              $BIN_PATH/XconfHttpDl set_http_url "$addr_type $CURL_SSR_PARAM" "$firmwareFilename" complete_url
+              $BIN_PATH/XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename" complete_url $addr_type --header "$authorizationHeader" -fgL
 	      set_url_stat=$?
           fi
        fi
