@@ -425,6 +425,7 @@ useDirectRequest()
             if [ "0x$stateRed" == "0x1" ]; then
                 stateRedlog "XCONF SCRIPT : stateRedRecovery - attempting MTLS connection to XCONF server"
                 CERT="$(getStateRedCreds)"
+                CURL_CMD="GetConfigFile /tmp/stateredxpki stdout | sed -e 's/^/--pass /' | $CURL_PATH/curl $CERT $CURL_ARGS"
                 result=$(GetConfigFile /tmp/stateredxpki stdout | sed -e 's/^/--pass /' | "$CURL_PATH/curl" $CERT --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -d "$JSONSTR" -o "$FWDL_JSON" "$xconf_url" $CERT_STATUS --connect-timeout 30 -m 30 > "$HTTP_CODE")
                 ret=$?
                 echo_t "CURL_CMD:`echo "$CURL_CMD" | cut -d "|" -f3`"
@@ -1617,12 +1618,6 @@ do
               set_url_stat=$?
 	  fi
         else
-          if ! printf '%s\n' "$serverUrl" | grep -Eq '^https://[A-Za-z0-9:/._-]+$'; then
-               echo_t "XCONF SCRIPT : Invalid serverUrl" >> "$XCONF_LOG_FILE"
-              set_url_stat=1
-              rm -f /tmp/.downloadingfw
-              exit 1
-          fi
           if ! echo "$firmwareFilename" | grep -Eq '^[A-Za-z0-9._-]+$' || [ "$firmwareFilename" = "." ] || [ "$firmwareFilename" = ".." ]; then
               echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
               set_url_stat=1
@@ -1630,8 +1625,9 @@ do
               exit 1
           fi
           # Set the url and filename
-          echo_t "XCONF SCRIPT : Setting validation firmware download URL" >> "$XCONF_LOG_FILE"
-          XconfHttpDl set_http_url "$serverUrl" "$firmwareFilename" complete_url
+          echo_t "XCONF SCRIPT : URL --- `echo "$CURL_SSR_PARAM"| sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename"
+          echo_t "XCONF SCRIPT : URL --- `echo "$CURL_SSR_PARAM"| sed -e  's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/g'` and NAME --- $firmwareFilename" >> $XCONF_LOG_FILE
+          XconfHttpDl set_http_url "$CURL_SSR_PARAM" "$firmwareFilename" complete_url
           set_url_stat=$?
         fi
         
@@ -1644,14 +1640,14 @@ do
 
             if [ "$rebootImmediately" == "false" ] && [ "$rebootNow" == "false" ];then
 
-				echo_t "XCONF SCRIPT : Reboot Immediately : FALSE. Downloading image now"
-				echo_t "XCONF SCRIPT : Reboot Immediately : FALSE. Downloading image now" >> $XCONF_LOG_FILE
-			# TCXB6 deferred reboot functionality implementation is not yet available, making change ArriXB6 specific
-			if  [ $is_already_flash_led_disable -eq 0 ] && [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] ;
-			then
-				echo_t "XCONF SCRIPT	: ### Disabling httpdownload LED flash ###" >> $XCONF_LOG_FILE
-				XconfHttpDl http_flash_led $http_flash_led_disable  >> $XCONF_LOG_FILE
-				 is_already_flash_led_disable=1
+                echo_t "XCONF SCRIPT : Reboot Immediately : FALSE. Downloading image now"
+                echo_t "XCONF SCRIPT : Reboot Immediately : FALSE. Downloading image now" >> $XCONF_LOG_FILE
+            # TCXB6 deferred reboot functionality implementation is not yet available, making change ArriXB6 specific
+            if  [ $is_already_flash_led_disable -eq 0 ] && [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ] ;
+            then
+                echo_t "XCONF SCRIPT	: ### Disabling httpdownload LED flash ###" >> $XCONF_LOG_FILE
+                XconfHttpDl http_flash_led $http_flash_led_disable  >> $XCONF_LOG_FILE
+                is_already_flash_led_disable=1
 			fi    
             else
                 if [ -f /tmp/.dwd_led_blink_disable ]
@@ -1661,41 +1657,41 @@ do
                 fi
                 echo_t  "XCONF SCRIPT : Reboot Immediately : TRUE : Downloading image now"
                 echo_t  "XCONF SCRIPT : Reboot Immediately : TRUE : Downloading image now" >> $XCONF_LOG_FILE
-			# TCXB6 deferred reboot functionality implementation is not yet available, making change ArriXB6 specific
-			if  [ $is_already_flash_led_disable -eq 1 ] && [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]  ;
-			then
-				echo_t "XCONF SCRIPT	: ### Enabling httpdownload LED flash ###" >> $XCONF_LOG_FILE
-				XconfHttpDl http_flash_led $http_flash_led_enable  >> $XCONF_LOG_FILE
-				 is_already_flash_led_disable=0
- 			fi
+            # TCXB6 deferred reboot functionality implementation is not yet available, making change ArriXB6 specific
+            if  [ $is_already_flash_led_disable -eq 1 ] && [ "$BOX_TYPE" = "XB6" -a "$MANUFACTURE" = "Arris" ]  ;
+            then
+                echo_t "XCONF SCRIPT	: ### Enabling httpdownload LED flash ###" >> $XCONF_LOG_FILE
+		XconfHttpDl http_flash_led $http_flash_led_enable  >> $XCONF_LOG_FILE
+		 is_already_flash_led_disable=0
             fi
-			#echo_t "XCONF SCRIPT : Sleep to prevent gw refresh error"
-			#echo_t "XCONF SCRIPT : Sleep to prevent gw refresh error" >> $XCONF_LOG_FILE
+            fi
+            #echo_t "XCONF SCRIPT : Sleep to prevent gw refresh error"
+            #echo_t "XCONF SCRIPT : Sleep to prevent gw refresh error" >> $XCONF_LOG_FILE
             #sleep 60
-			#Trigger FirmwareDownloadStartedNotification before commencement of firmware download
+            #Trigger FirmwareDownloadStartedNotification before commencement of firmware download
 
-			current_time=`date +%s`
-			echo_t "current_time calculated as $current_time" >> $XCONF_LOG_FILE
-			if [ "$rebootImmediately" == "true" ] || [ "$rebootNow" == "true" ];then
-				reboot_flag="forced"
-			else
-				reboot_flag="deferred"
-			fi
-			FW_DWLD_NOTIFICATION_STRING="$current_time,$reboot_flag,$current_FW_Version,$update_FW_Version"
-			echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification parameters are $FW_DWLD_NOTIFICATION_STRING" >> $XCONF_LOG_FILE
-			dmcli eRT setv Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.RPC.FirmwareDownloadStartedNotification string "$FW_DWLD_NOTIFICATION_STRING"
-			echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification SET is triggered" >> $XCONF_LOG_FILE
+            current_time=`date +%s`
+            echo_t "current_time calculated as $current_time" >> $XCONF_LOG_FILE
+            if [ "$rebootImmediately" == "true" ] || [ "$rebootNow" == "true" ];then
+                reboot_flag="forced"
+            else
+                reboot_flag="deferred"
+            fi
+            FW_DWLD_NOTIFICATION_STRING="$current_time,$reboot_flag,$current_FW_Version,$update_FW_Version"
+            echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification parameters are $FW_DWLD_NOTIFICATION_STRING" >> $XCONF_LOG_FILE
+            dmcli eRT setv Device.DeviceInfo.X_RDKCENTRAL-COM_xOpsDeviceMgmt.RPC.FirmwareDownloadStartedNotification string "$FW_DWLD_NOTIFICATION_STRING"
+            echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification SET is triggered" >> $XCONF_LOG_FILE
 
-	        # Start the image download
-		echo_t "[ $(date) ] XCONF SCRIPT  ### httpdownload started ###" >> $XCONF_LOG_FILE
-	        XconfHttpDl http_download >> $XCONF_LOG_FILE
-	        http_dl_stat=$?
-		echo -e "\n"
-		echo_t "[ $(date) ] XCONF SCRIPT  ### httpdownload completed ###" >> $XCONF_LOG_FILE
-	        echo_t "XCONF SCRIPT : HTTP DL STATUS $http_dl_stat"
-	        echo_t "**XCONF SCRIPT : HTTP DL STATUS $http_dl_stat**" >> $XCONF_LOG_FILE
+            # Start the image download
+            echo_t "[ $(date) ] XCONF SCRIPT  ### httpdownload started ###" >> $XCONF_LOG_FILE
+            XconfHttpDl http_download >> $XCONF_LOG_FILE
+            http_dl_stat=$?
+            echo -e "\n"
+            echo_t "[ $(date) ] XCONF SCRIPT  ### httpdownload completed ###" >> $XCONF_LOG_FILE
+            echo_t "XCONF SCRIPT : HTTP DL STATUS $http_dl_stat"
+            echo_t "**XCONF SCRIPT : HTTP DL STATUS $http_dl_stat**" >> $XCONF_LOG_FILE
 			
-	        # If the http_dl_stat is 0, the download was succesful,          
+            # If the http_dl_stat is 0, the download was succesful, 
             # Indicate a succesful download and continue to the reboot manager
 		
             if [ $http_dl_stat -eq 0 ];then

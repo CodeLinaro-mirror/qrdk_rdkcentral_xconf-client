@@ -321,7 +321,9 @@ do_Codebig_signing()
             fi
             echo_t "configparamgen request_type=$request_type" >> "$XCONF_LOG_FILE"
             echo -e "\n"
+	    SIGN_FILE=$(umask 077; mktemp "/tmp/.signedRequest.XXXXXX") || return 1
             configparamgen "$request_type" "$imageHTTPURL" > $SIGN_FILE
+	    echo_t "configparamgen success" >> $XCONF_LOG_FILE
             cbSignedimageHTTPURL=`cat $SIGN_FILE`
             rm -f $SIGN_FILE
 #            echo $cbSignedimageHTTPURL >>$XCONF_LOG_FILE
@@ -344,18 +346,7 @@ do_Codebig_signing()
             fi
             authorizationHeader=`echo $cbSignedimageHTTPURL | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*oauth_consumer_key|oauth_consumer_key|g"`
             authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-            # Created a private temporary file for the authorization header.
-            auth_tmp=$(mktemp "${TMPDIR:-/tmp}/xconf-auth.XXXXXX") || return 1
-            chmod 600 "$auth_tmp" || {
-                rm -f -- "$auth_tmp"
-	        return 1
-	    }
-            if ! printf '%s\n' "$authorizationHeader" > "$auth_tmp"; then
-                rm -f -- "$auth_tmp"
-                return 1
-            fi
-            curl $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface "$interface" -H "$authorizationHeader" $addr_type -w '%{http_code}\n' -fgLo "$TMP_PATH/$BIN_PATH" "$serverUrl"
-            rm -f -- "$auth_tmp"
+            CURL_CMD_SSR="curl $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface $interface -H '$authorizationHeader' $addr_type -w '%{http_code}\n' -fgLo $TMP_PATH/$BIN_PATH '$serverUrl'"
       fi
 }
 
