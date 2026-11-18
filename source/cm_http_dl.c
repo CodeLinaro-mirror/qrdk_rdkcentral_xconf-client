@@ -710,8 +710,7 @@ int main(int argc,char *argv[])
                        }
                   } else {
                       // TBD - Evaluate impact on all other platforms which doesn't have changes in oem HAL api
-                      //
-                                  syscfg_get(NULL, "SWDLDirectEnable", buf, sizeof(buf));
+                      syscfg_get(NULL, "SWDLDirectEnable", buf, sizeof(buf));
                       if (strcmp(buf, "true") == 0) {
                         rc = sprintf_s(pHttpUrl, sizeof(pHttpUrl), "'%s'", argv[2]);
                         if(rc < EOK ) {
