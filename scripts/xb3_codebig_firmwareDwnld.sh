@@ -1517,6 +1517,10 @@ do
 			else
 				reboot_flag="deferred"
 			fi
+                        if [ "$triggeredFrom" = "delayedDownload" ]; then
+                            current_FW_Version=$IMAGENAME
+                            update_FW_Version=$firmwareVersion
+                        fi
                         if ! echo "$current_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
                             echo_t "XCONF SCRIPT : Invalid current_FW_Version: $current_FW_Version" >> $XCONF_LOG_FILE
                             return 1
