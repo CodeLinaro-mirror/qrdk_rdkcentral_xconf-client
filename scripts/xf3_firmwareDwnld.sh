@@ -1501,12 +1501,6 @@ do
             rm -f /tmp/.downloadingfw
 	    exit 1
 	fi
-        case "$firmwareFilename" in
-            -*)
-            echo_t "Invalid firmwareFilename: $(printf '%s' "$firmwareFilename" | tr -c '[:print:]' '?')" >> $XCONF_LOG_FILE
-            exit 1
-            ;;
-        esac
 
        if [ "$curr_conn_type" = "direct" ]; then
           # Set the url and filename
