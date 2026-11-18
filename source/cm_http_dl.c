@@ -617,6 +617,7 @@ static int build_complete_url(char *out, size_t sz, char **opts, const char *url
             if (strcmp(opts[i], g_opts[k].name) != 0) continue;
             found = 1;
             if (g_opts[k].out[0] && !append_str(out, sz, &len, g_opts[k].out)) goto too_long;
+            if (g_opts[k].is_cert && !append_str(out, sz, &len, " ")) goto too_long;
             if (g_opts[k].has_value) {
                 if (opts[i + 1] == NULL || !is_safe_value(opts[i + 1])) {
                     printf("XCONF BIN : invalid value for %s\n", g_opts[k].name);
@@ -645,7 +646,8 @@ static int build_complete_url(char *out, size_t sz, char **opts, const char *url
     if (any && !cert_seen) {
         if (!append_str(out, sz, &len, "'") || !append_str(out, sz, &len, url) ||
             !append_str(out, sz, &len, "'")) goto too_long;
-    } else if (!append_str(out, sz, &len, url)) {   /* bare URL, or cert form: URL unquoted like develop */
+    } else if (!append_str(out, sz, &len, url) ||        /* bare URL, or cert form: URL unquoted like develop */
+               (cert_seen && !append_str(out, sz, &len, " "))) {   /* cert form: trailing space like develop */
         goto too_long;
     }
     return 1;
