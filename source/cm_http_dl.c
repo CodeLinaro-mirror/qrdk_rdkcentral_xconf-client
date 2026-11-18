@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <telemetry_busmessage_sender.h>
 #include "fw_download_check.h"
@@ -561,6 +562,92 @@ INT HTTP_LED_Flash ( int LEDFlashState )
 	return  http_led_flash_stat;       
 }
 
+static int is_safe_url(const char *s)      /* XCONF-026: [A-Za-z0-9._/:%-] */
+{
+    if (!s || !*s) return 0;
+    for (; *s; s++)
+        if (!isalnum((unsigned char)*s) && !strchr("._/:%-", *s)) return 0;
+    return 1;
+}
+
+static int is_safe_filename(const char *s) /* XCONF-025: [A-Za-z0-9._-]+, no leading '-', not . or .. */
+{
+    if (!s || !*s || *s == '-' || !strcmp(s, ".") || !strcmp(s, "..")) return 0;
+    for (; *s; s++)
+        if (!isalnum((unsigned char)*s) && !strchr("._-", *s)) return 0;
+    return 1;
+}
+
+static int is_safe_value(const char *s)    /* value goes inside '...': no quote, backslash, control chars */
+{
+    if (!s || !*s) return 0;
+    for (; *s; s++)
+        if ((unsigned char)*s < 0x20 || *s == 0x7f || *s == '\'' || *s == '\\') return 0;
+    return 1;
+}
+
+/* Allow-list of options accepted after "complete_url". name = script arg, out = text given to the HAL. */
+static const struct { const char *name; const char *out; int has_value; } g_opts[] = {
+    { "-4",       "-4",   0 },
+    { "-fgL",     "-fgL", 0 },
+    { "--header", "-H",   1 },
+};
+
+static int append_str(char *buf, size_t sz, size_t *len, const char *s)
+{
+    size_t n = strlen(s);
+    if (*len + n >= sz) return 0;
+    memcpy(buf + *len, s, n + 1);
+    *len += n;
+    return 1;
+}
+
+/* Builds "[opt [ 'value']]... 'url'" from separate args, or the bare url when no options are given.
+* Returns 1 on success, 0 on any rejected/oversized input (message already printed). */
+static int build_complete_url(char *out, size_t sz, char **opts, const char *url)
+{
+    size_t len = 0, i, k;
+    int any = 0;
+
+    out[0] = '\0';
+    for (i = 0; opts[i] != NULL; i++) {
+        int found = 0;
+        for (k = 0; k < sizeof(g_opts) / sizeof(g_opts[0]); k++) {
+            if (strcmp(opts[i], g_opts[k].name) != 0) continue;
+            found = 1;
+            if (!append_str(out, sz, &len, g_opts[k].out)) goto too_long;
+            if (g_opts[k].has_value) {
+                if (opts[i + 1] == NULL || !is_safe_value(opts[i + 1])) {
+                    printf("XCONF BIN : invalid value for %s\n", g_opts[k].name);
+                    return 0;
+                }
+                i++;
+                if (!append_str(out, sz, &len, " '") || !append_str(out, sz, &len, opts[i]) ||
+                    !append_str(out, sz, &len, "'")) goto too_long;
+            }
+            if (!append_str(out, sz, &len, " ")) goto too_long;
+            any = 1;
+            break;
+        }
+        if (!found) {
+            printf("XCONF BIN : unsupported option %s\n", opts[i]);
+            return 0;
+        }
+    }
+
+    if (any) {
+        if (!append_str(out, sz, &len, "'") || !append_str(out, sz, &len, url) ||
+            !append_str(out, sz, &len, "'")) goto too_long;
+    } else if (!append_str(out, sz, &len, url)) {   /* bare URL, same as develop (xb3_codebig) */
+        goto too_long;
+    }
+    return 1;
+
+too_long:
+    printf("XCONF BIN : URL too long\n");
+    return 0;
+}
+
 int main(int argc,char *argv[])
 {
     char *pfilename = NULL;
@@ -598,55 +685,24 @@ int main(int argc,char *argv[])
              */
 
              if (((argv[2]) != NULL) && ((argv[3]) != NULL)) {
-                  size_t i;
-                  int valid_url = 1;
-                  int valid_filename = 1;
 
-                  for (i = 0; argv[2][i] != '\0'; i++) {
-                      unsigned char c = (unsigned char)argv[2][i];
-                      if (!((c >= 'A' && c <= 'Z') ||
-                          (c >= 'a' && c <= 'z') ||
-                          (c >= '0' && c <= '9') ||
-                          c == '.' || c == '_' || c == '/' ||
-                          c == ':' || c == '%' || c == '-')) {
-                          valid_url = 0;
-                          break;
-                      }
-                  }
-
-                  for (i = 0; argv[3][i] != '\0'; i++) {
-                      unsigned char c = (unsigned char)argv[3][i];
-                      if (!((c >= 'A' && c <= 'Z') ||
-                          (c >= 'a' && c <= 'z') ||
-                          (c >= '0' && c <= '9') ||
-                          c == '.' || c == '_' || c == '-')) {
-                          valid_filename = 0;
-                          break;
-                      }
-                  }
-                  if (argv[3][0] == '-' ||
-                      strcmp(argv[3], ".") == 0 ||
-                      strcmp(argv[3], "..") == 0) {
-                      valid_filename = 0;
-                  }
-
-                  if (!valid_url || !valid_filename) {
-                      printf("XCONF BIN: Invalid URL or filename.\n");
-                      ret_code = 1;
-		      return ret_code;
-                  }
                   pfilename = argv[3];
+
+                  if (!is_safe_url(argv[2]) || !is_safe_filename(pfilename)) {
+                      printf("XCONF BIN : invalid URL or filename. Aborting set_http_url.\n");
+                      return 1;
+                  }
 
                   if ((argv[4]) != NULL) {
                       rc = strcmp_s("complete_url",strlen("complete_url"),argv[4],&ind);
                       ERR_CHK(rc);
                       if((ind == 0) && (rc == EOK)) {
-                          // Exact download location passed by caller.
-                          rc = strcpy_s(pHttpUrl,sizeof(pHttpUrl), argv[2]);
-                          ERR_CHK(rc);
+                          if (!build_complete_url(pHttpUrl, sizeof(pHttpUrl), &argv[5], argv[2])) {
+                              return 1;
+                          }
                           ret_code = Set_HTTP_Download_Url(pHttpUrl, pfilename);
                        } else if((strstr(argv[4], "--cert")) && ((argv[2]) != NULL)) {
-                            rc = sprintf_s(pHttpUrl, sizeof(pHttpUrl), "%s %s/%s", argv[4], argv[2], pfilename);
+                            rc = sprintf_s(pHttpUrl, sizeof(pHttpUrl), "%s '%s/%s'", argv[4], argv[2], pfilename);
                             ERR_CHK(rc);
                             ret_code = Set_HTTP_Download_Url(pHttpUrl, pfilename);
                        } else {
@@ -654,10 +710,8 @@ int main(int argc,char *argv[])
                        }
                   } else {
                       // TBD - Evaluate impact on all other platforms which doesn't have changes in oem HAL api
-                      // Form complete download URL from args passed by caller including the quotes
-                      // "'" + pHttpUrl + "/" + "pfilename" + "'"
-
-                      syscfg_get(NULL, "SWDLDirectEnable", buf, sizeof(buf));
+                      //
+                                  syscfg_get(NULL, "SWDLDirectEnable", buf, sizeof(buf));
                       if (strcmp(buf, "true") == 0) {
                         rc = sprintf_s(pHttpUrl, sizeof(pHttpUrl), "'%s'", argv[2]);
                         if(rc < EOK ) {
