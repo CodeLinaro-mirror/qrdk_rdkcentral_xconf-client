@@ -315,10 +315,6 @@ do_Codebig_signing()
             fi
             accountId=$(getAccountId | tr -cd 'A-Za-z0-9._-')
             partnerId=$(getPartnerId | tr -cd 'A-Za-z0-9._-')
-            if [ -z "$accountId" ] || [ -z "$partnerId" ]; then
-               echo_t "Invalid accountId or partnerId" >> "$XCONF_LOG_FILE"
-               return 1
-            fi
             echo_t "configparamgen request_type=$request_type" >> "$XCONF_LOG_FILE"
             echo -e "\n"
 	    SIGN_FILE=$(umask 077; mktemp "/tmp/.signedRequest.XXXXXX") || return 1
