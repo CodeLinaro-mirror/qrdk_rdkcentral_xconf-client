@@ -346,7 +346,7 @@ do_Codebig_signing()
             fi
             authorizationHeader=`echo $cbSignedimageHTTPURL | sed -e "s|&|\", |g" -e "s|=|=\"|g" -e "s|.*oauth_consumer_key|oauth_consumer_key|g"`
             authorizationHeader="Authorization: OAuth realm=\"\", $authorizationHeader\""
-            CURL_CMD_SSR="curl $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface $interface -H '$authorizationHeader' $addr_type -w '%{http_code}\n' -fgLo $TMP_PATH/$BIN_PATH '$serverUrl'"
+            CURL_CMD_SSR="curl $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface $interface -H '$authorizationHeader' $addr_type -w '%{http_code}\n' -fgLo $TMP_PATH/$firmwareFilename '$serverUrl'"
       fi
 }
 
@@ -1568,8 +1568,12 @@ do
            numberOfTries=5
            while [ $currentTry -lt $numberOfTries ]; 
            do
-		HTTP_CODE=$("$CURL_PATH/curl" $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface "$interface" $addr_type --write-out '%{http_code}' --fail --location --output "$TMP_PATH/$firmwareFilename" -- "$firmwareLocation/$firmwareFilename")
-		curl_code=$?
+                if [ "$curr_conn_type" = "codebig" ]; then
+                    HTTP_CODE=$("$CURL_PATH/curl" $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface "$interface" $addr_type -H "$authorizationHeader" --write-out '%{http_code}' --fail --location --output "$TMP_PATH/$firmwareFilename" -- "$serverUrl")
+                else
+                    HTTP_CODE=$("$CURL_PATH/curl" $CERT_STATUS --connect-timeout 30 --tlsv1.2 --interface "$interface" $addr_type --write-out '%{http_code}' --fail --location --output "$TMP_PATH/$firmwareFilename" -- "$firmwareLocation/$firmwareFilename")
+                fi
+                curl_code=$?
 		HTTP_RESPONSE_CODE=$(echo "$HTTP_CODE" | awk -F\" '{print $1}' )
 		echo_t "XCONF SCRIPT : Download URL : $firmwareLocation/$firmwareFilename" >> $XCONF_LOG_FILE  
 		echo_t "XCONF SCRIPT : curl_code:$curl_code, http_code:$HTTP_RESPONSE_CODE"  >> $XCONF_LOG_FILE
