@@ -681,7 +681,7 @@ getFirmwareUpgDetail()
             stateRed=0
         fi
         if [ "0x$stateRed" == "0x1" ]; then
-            JSONSTR=$JSONSTR'&recovery="true"'
+            JSONSTR=$JSONSTR'&recovery=true'
         fi
 
         if [ "$UseCodebig" = "1" ]; then

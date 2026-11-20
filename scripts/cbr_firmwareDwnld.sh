@@ -348,7 +348,7 @@ validateFirmwareLocation()
 {
      [ "$(printf '%s\n' "$1" | wc -l)" -eq 1 ] || return 1
      printf '%s\n' "$1" | \
-         grep -Eq '^https://[A-Za-z0-9._-]+(:[0-9]+)?(/[A-Za-z0-9._/%-]+)*$' &&
+         grep -Eq '^https://[A-Za-z0-9._-]+(:[0-9]+)?(/[A-Za-z0-9._/%-]*)?$' &&
          ! printf '%s\n' "$1" | grep -Eq '(^|/)\.\.(/|$)'
 }
 
@@ -625,7 +625,7 @@ getFirmwareUpgDetail()
         isInStateRed
         stateRed=$?
         if [ "0x$stateRed" == "0x1" ]; then
-            JSONSTR=$JSONSTR'&recovery="true"'
+            JSONSTR=$JSONSTR'&recovery=true'
         fi
 
         if [ "$UseCodebig" = "1" ]; then
