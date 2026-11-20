@@ -573,7 +573,7 @@ getFirmwareUpgDetail()
         if [ "$UseCodebig" -eq "1" ] && [ $CDL_SERVER_OVERRIDE -eq 0 ];then
             SECONDV=`dmcli eRT getv Device.X_CISCO_COM_CableModem.TimeOffset | grep value | cut -d ":" -f 3 | tr -d ' ' `
             serial=`dmcli eRT getv Device.DeviceInfo.SerialNumber | grep value | cut -d ":" -f 3 | tr -d ' ' `
-            CB_CAPABILITIES='&capabilities=rebootDecoupled&capabilities="RCDL"&capabilities="supportsFullHttpUrl"'
+            CB_CAPABILITIES='&capabilities=rebootDecoupled&capabilities=RCDL&capabilities=supportsFullHttpUrl'
             request_type=2
 
             echo_t "XCONF SCRIPT : OFFSET TIME : $SECONDV" >> $XCONF_LOG_FILE
@@ -617,7 +617,7 @@ getFirmwareUpgDetail()
 		if [ "$UseCodebig" -eq "0" ] || [ $CDL_SERVER_OVERRIDE -eq 1 ];then
                         echo_t "Trying Direct Communication" >> $XCONF_LOG_FILE
 			echo_t "XCONF SCRIPT : Post string creation"
-                        POSTSTR="eStbMac=$MAC&firmwareVersion=$currentVersion&env=$env&model=$devicemodel&partnerId=$partnerId&activationInProgress=${activationInProgress}&accountId=${accountId}&localtime=$date&dlCertBundle=${instBundles}&dlAppBundle=${instAppBundles}&timezone=EST05&capabilities=\"rebootDecoupled\"&capabilities=\"RCDL\"&capabilities=\"supportsFullHttpUrl\""
+                        POSTSTR="eStbMac=$MAC&firmwareVersion=$currentVersion&env=$env&model=$devicemodel&partnerId=$partnerId&activationInProgress=${activationInProgress}&accountId=${accountId}&localtime=$date&dlCertBundle=${instBundles}&dlAppBundle=${instAppBundles}&timezone=EST05&capabilities=rebootDecoupled&capabilities=RCDL&capabilities=supportsFullHttpUrl"
 			echo_t "XCONF SCRIPT : POSTSTR : $POSTSTR" >> $XCONF_LOG_FILE
 
 			# Query the  XCONF Server, using TLS 1.2
@@ -662,8 +662,8 @@ getFirmwareUpgDetail()
             echo_t "CURL_CMD:$CURL_CMD_LOG" >> "$XCONF_LOG_FILE"
 
             curl $CERT_STATUS --connect-timeout 30 --interface "$interface" $addr_type -w '%{http_code}\n' --tlsv1.2 -o "$FILENAME" "$CB_SIGNED_REQUEST" -m 30 > "$HTTP_CODE"
-            echo_t "$(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
 	    ret=$?
+            echo_t "$(echo "$CB_SIGNED_REQUEST" | sed 's/oauth_consumer_key=.*oauth_signature=.*/<hidden>/')"
 
             HTTP_RESPONSE_CODE=$(awk -F\" '{print $1}' $HTTP_CODE)
             echo_t "ret = $ret http_code: $HTTP_RESPONSE_CODE" >> $XCONF_LOG_FILE
@@ -1523,11 +1523,13 @@ do
                         fi
                         if ! echo "$current_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
                             echo_t "XCONF SCRIPT : Invalid current_FW_Version: $current_FW_Version" >> $XCONF_LOG_FILE
-                            return 1
+                            rm -rf $DOWNLOAD_INPROGRESS
+                            exit 1
                         fi
                         if ! echo "$update_FW_Version" | grep -Eq '^[A-Za-z0-9._-]+$'; then
                             echo_t "XCONF SCRIPT : Invalid update_FW_Version: $update_FW_Version" >> $XCONF_LOG_FILE
-                            return 1
+                            rm -rf $DOWNLOAD_INPROGRESS
+                            exit 1
                         fi
 			FW_DWLD_NOTIFICATION_STRING="$current_time,$reboot_flag,$current_FW_Version,$update_FW_Version"	
 			echo_t "XCONF SCRIPT : FirmwareDownloadStartedNotification parameters are $FW_DWLD_NOTIFICATION_STRING" >> $XCONF_LOG_FILE
